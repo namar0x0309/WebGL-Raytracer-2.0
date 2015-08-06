@@ -2,6 +2,7 @@ function Raytracer(glCanvas) {
 	this.glCanvas = glCanvas;
 	this.objects = [];
 	this.lights = [];
+	this.textures = [];
 	this.antiAliasing = 1;
 	
 	//setup the buffers that we will use
@@ -11,22 +12,26 @@ function Raytracer(glCanvas) {
 			
 			this.vertexBuffer = this.glCanvas.createBuffer();
 			this.vertexBuffer.itemSize = 2;
-			this.vertexBuffer.numItems = 4;
+			this.vertexBuffer.numItems = 6;
 			
 			this.objectsTexture = this.glCanvas.createTexture();
 			this.objectDefinitionsTexture = this.glCanvas.createTexture();
 			this.objectMaterialsTexture = this.glCanvas.createTexture();
 			this.objectMaterialsExtendedTexture = this.glCanvas.createTexture();
 			
+			this.lensTexture = new Texture("Lens/lensDirt0.png");
+
 			this.lightsTexture = this.glCanvas.createTexture();
 			this.lightMaterialsTexture = this.glCanvas.createTexture();
 		}	
 	
 		vertices = [
-			-1.0, 1.0,
-			-1.0, -1.0,
-			1.0, 1.0,
-			1.0, -1.0];
+			-1.0,  1.0,
+      -1.0,  -1.0,
+      1.0,  -1.0,
+      1.0,  -1.0,
+      1.0,  1.0,
+      -1.0,  1.0];
 			
 		this.glCanvas.bindBuffer(glCanvas.ARRAY_BUFFER,this.vertexBuffer);
 		this.glCanvas.bufferData(glCanvas.ARRAY_BUFFER,new Float32Array(vertices),glCanvas.STATIC_DRAW);
@@ -95,7 +100,9 @@ function Raytracer(glCanvas) {
     	glCanvas.texImage2D(glCanvas.TEXTURE_2D, 0, glCanvas.RGBA, sizeList, sizeList, 0, glCanvas.RGBA, glCanvas.FLOAT, dataMaterialsExtended);
     	glCanvas.texParameteri(glCanvas.TEXTURE_2D, glCanvas.TEXTURE_MAG_FILTER, glCanvas.NEAREST);
     	glCanvas.texParameteri(glCanvas.TEXTURE_2D, glCanvas.TEXTURE_MIN_FILTER, glCanvas.NEAREST);
-    	
+    		
+		  this.lensTexture.texCoordLocation = gl.getAttribLocation(glCanvas.shaderProgram, "a_texCoord");
+				
     	glCanvas.bindTexture(glCanvas.TEXTURE_2D,null);
 	}
 	
@@ -167,7 +174,11 @@ function Raytracer(glCanvas) {
     	glCanvas.activeTexture(glCanvas.TEXTURE5);
     	glCanvas.bindTexture(glCanvas.TEXTURE_2D, this.lightMaterialsTexture);
     	glCanvas.uniform1i(glCanvas.shaderProgram.lightMaterials, 5);
-    	
+			
+    	glCanvas.activeTexture(glCanvas.TEXTURE6);
+    	glCanvas.bindTexture(glCanvas.TEXTURE_2D, this.lensTexture.texture);
+    	glCanvas.uniform1i(	glCanvas.shaderProgram.lensTexture, 6);
+ 			
     	glCanvas.uniform1i(glCanvas.shaderProgram.numObjects,this.objects.length);
     	glCanvas.uniform1i(glCanvas.shaderProgram.numLights,this.lights.length);
     	glCanvas.uniform1i(glCanvas.shaderProgram.antiAliasing,this.antiAliasing);
@@ -175,6 +186,24 @@ function Raytracer(glCanvas) {
     	glCanvas.uniform1f(glCanvas.shaderProgram.lightTextureSize,Math.pow(2.0,Math.ceil(Math.log(this.lights.length)/(2.0*Math.log(2.0)))));
 		
 		glCanvas.drawArrays(gl.TRIANGLE_STRIP, 0, this.vertexBuffer.numItems);
+		
+		/**/
+	  // look up where the texture coordinates need to go.
+
+		this.lensTexture.texCoordBuffer = gl.createBuffer();
+		  gl.bindBuffer(gl.ARRAY_BUFFER, this.lensTexture.texCoordBuffer);
+		  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+			0.0,  0.0,
+      1.0,  0.0,
+      0.0,  1.0,
+      0.0,  1.0,
+      1.0,  0.0,
+      1.0,  1.0]), gl.STATIC_DRAW);
+					
+		  gl.enableVertexAttribArray(this.lensTexture.texCoordLocation);
+		  gl.vertexAttribPointer(this.lensTexture.texCoordLocation, 2, gl.FLOAT, false, 0, 0);
+
+		/**/
 	}
 	
 	return this;
@@ -205,5 +234,15 @@ function Light() {
 	this.position = [0.0,0.0,0.0,0.0];
 	this.material = [1.0,1.0,1.0,1.0];
 
+	return this;
+}
+
+function Texture(src)
+{
+	this.texture = gl.createTexture();
+	this.texImage = new Image();
+	this.texImage.parent = this;
+	this.texImage.onload = function() { handleTextureLoaded(this.parent.texImage, this.parent.texture ); }
+	this.texImage.src = src;
 	return this;
 }
