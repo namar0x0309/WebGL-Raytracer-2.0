@@ -9,5 +9,4 @@ Current:w
 Heavily modified with new rendering techniques and experimental shading hacks/tricks.
 =======
 
-RUn run run 
 open /Applications/Google\ Chrome\ Canary.app --args --allow-file-access-from-files
